@@ -1,7 +1,7 @@
 class Ship {
-  static UNDAMAGED = 1;
-  static TOUCHED = 2;
-  static SUNKEN = 3;
+  static UNDAMAGED = 2;
+  static TOUCHED = 3;
+  static SUNKEN = 4;
 
   constructor(id, name, length) {
     this.id = id;
@@ -31,106 +31,159 @@ class Ship {
   };
 }
 
-class Board {
-  static SEA_STATUS_NOT_TESTED = -1;
-  static SEA_STATUS_FREE = 0;
-  static SEA_STATUS_UNDAMAGED = Ship.UNDAMAGED;
-  static SEA_STATUS_TOUCHED = Ship.TOUCHED;
-  static SEA_STATUS_SUNKEN = Ship.SUNKEN;
+class BoardWidget {
+  colors = ["white", "blue", "green", "yellow", "red"];
 
-  constructor($el) {
-    this.rows = 8;
-    this.cols = 8;
-    this.ships = [];
-    for (let r = 1; r <= this.rows; r++) {
-      $el.append(`<div id="row-${r}" class="row"></div>`);
-      for (let c = 1; c <= this.cols; c++) {
-        $(`#row-${r}`).append(
-          `<div id="cell-${r}-${c}" class="cell" onclick="shoot(${r},${c})"></div>`
+  constructor($el, board) {
+    this.boardId = $el.attr("id");
+    this.board = board;
+    for (let r = 1; r <= board.rows; r++) {
+      $el.append(`<div id="${this.boardId}__row-${r}" class="row"></div>`);
+      for (let c = 1; c <= board.cols; c++) {
+        $(`#${this.boardId}__row-${r}`).append(
+          `<div id="${
+            this.boardId
+          }__cell-${r}-${c}" class="cell" onclick="shoot(${r},${c}, '${
+            board.playerType
+          }')"></div>`
         );
-        // $(`#cell-${r}-${c}`).append("<p>X</p>");
       }
     }
   }
 
-  calculate = () => {
-    const sea = [];
-    for (let r = 1; r <= this.rows; r++) {
-      sea[r] = [];
-      for (let c = 1; c <= this.cols; c++) {
-        sea[r][c] = { status: Board.SEA_STATUS_FREE, ship: null };
-      }
-    }
-    for (const ship of this.ships) {
-      for (let i = 0; i < ship.length; i++) {
-        const r = ship.position.r + (ship.position.align === "|" ? i : 0);
-        const c = ship.position.c + (ship.position.align === "-" ? i : 0);
-        sea[r][c] = { status: ship.damages[i], ship };
-      }
-    }
-    return sea;
-  };
-
-  shootIn = (r, c) => {
-    const sea = this.calculate();
-    const { status, ship } = sea[r][c];
-    if (status !== Board.SEA_STATUS_UNDAMAGED) {
-      return status;
-    }
-    return ship.shoot(r, c);
-  };
-
   refresh = () => {
-    const sea = this.calculate();
-    sea.forEach((row, rowIndex) => {
+    const { boardId, colors } = this;
+    this.board.sea.forEach((row, rowIndex) => {
       row.forEach((cellValue, colIndex) => {
-        const $cell = $(`#cell-${rowIndex}-${colIndex}`);
-        switch (cellValue.status) {
-          case Board.SEA_STATUS_NOT_TESTED:
-            $cell.css("background", "white");
-            $cell.html("");
-            break;
-          case Board.SEA_STATUS_FREE:
-            $cell.css("background", "blue");
-            $cell.html("");
-            break;
-          case Board.SEA_STATUS_UNDAMAGED:
-            $cell.css("background", "green");
-            $cell.html("");
-            break;
-          case Board.SEA_STATUS_TOUCHED:
-            $cell.css("background", "yellow");
-            $cell.html("");
-            break;
-          case Board.SEA_STATUS_SUNKEN:
-            $cell.css("background", "red");
-            $cell.html("");
-            break;
-        }
+        $(`#${boardId}__cell-${rowIndex}-${colIndex}`).css(
+          "background",
+          colors[cellValue.status]
+        );
       });
     });
   };
 }
 
-const board = new Board($("#board"));
+class Board {
+  static SEA_STATUS_NOT_TESTED = 0;
+  static SEA_STATUS_FREE = 1;
+  static SEA_STATUS_UNDAMAGED = Ship.UNDAMAGED;
+  static SEA_STATUS_TOUCHED = Ship.TOUCHED;
+  static SEA_STATUS_SUNKEN = Ship.SUNKEN;
 
-function shoot(r, c) {
-  board.shootIn(r, c);
-  board.refresh();
+  static WITH_SHIPS = "WITH_SHIPS";
+  static OPPONENT = "opponent";
+
+  constructor(playerType) {
+    this.rows = 8;
+    this.cols = 8;
+    this.ships = [];
+    this.playerType = playerType;
+    this.reset();
+  }
+
+  reset = () => {
+    this.sea = [];
+    for (let r = 1; r <= this.rows; r++) {
+      this.sea[r] = [];
+      for (let c = 1; c <= this.cols; c++) {
+        this.sea[r][c] = { status: Board.SEA_STATUS_NOT_TESTED, ship: null };
+      }
+    }
+    return this.updateShipsInSea();
+  };
+
+  updateShipsInSea = () => {
+    for (const ship of this.ships) {
+      for (let i = 0; i < ship.length; i++) {
+        const r = ship.position.r + (ship.position.align === "|" ? i : 0);
+        const c = ship.position.c + (ship.position.align === "-" ? i : 0);
+        this.sea[r][c] = { status: ship.damages[i], ship };
+      }
+    }
+    return this.sea;
+  };
+
+  canIPutThisShip(ship) {
+    for (let i = 0; i < ship.length; i++) {
+      const r = ship.position.r + (ship.position.align === "|" ? i : 0);
+      const c = ship.position.c + (ship.position.align === "-" ? i : 0);
+      if (r > this.rows || c > this.cols) {
+        return false;
+      }
+      const { status } = this.sea[r][c];
+      if (status !== Board.SEA_STATUS_NOT_TESTED) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  deployShips = ships => {
+    this.ships = [];
+    let i = 0;
+    while (i < ships.length) {
+      const ship = ships[i];
+      const { position } = ship;
+      position.r = Math.floor(Math.random() * this.rows) + 1;
+      position.c = Math.floor(Math.random() * this.cols) + 1;
+      position.align = Math.random() < 0.5 ? "-" : "|";
+      if (this.canIPutThisShip(ship)) {
+        this.ships.push(ship);
+        this.updateShipsInSea();
+        i++;
+      }
+    }
+    this.reset();
+  };
+
+  shootIn = (r, c) => {
+    const { sea } = this;
+    switch (sea[r][c].status) {
+      case Board.SEA_STATUS_NOT_TESTED:
+        sea[r][c].status = Board.SEA_STATUS_FREE;
+      case Board.SEA_STATUS_FREE:
+        break;
+      default:
+        sea[r][c].status = sea[r][c].ship.shoot(r, c);
+    }
+    return sea[r][c].status;
+  };
+}
+
+const baseFleet = () => [
+  new Ship(0, "destroyer", 2),
+  new Ship(1, "submarine", 3),
+  new Ship(2, "cruiser", 3),
+  new Ship(3, "battleship", 4),
+  new Ship(4, "carrier", 5),
+];
+const boardMe = new Board(Board.WITH_SHIPS);
+const boardComputer = new Board(Board.WITH_SHIPS);
+const boardOpponent = new Board(Board.OPPONENT);
+const boardWidgetMe = new BoardWidget($("#boardMe"), boardMe);
+const boardWidgetOpponent = new BoardWidget($("#boardOpponent"), boardOpponent);
+
+function shootRandom(board) {
+  const r = Math.floor(Math.random() * board.rows) + 1;
+  const c = Math.floor(Math.random() * board.cols) + 1;
+  return board.shootIn(r, c);
+}
+
+function shoot(r, c, player) {
+  if (player === "opponent") {
+    boardOpponent.sea[r][c].status = boardComputer.shootIn(r, c);
+    boardWidgetOpponent.refresh();
+    shootRandom(boardMe);
+    boardWidgetMe.refresh();
+  }
 }
 
 function start() {
-  board.ships = [
-    new Ship(0, "destroyer", 2),
-    new Ship(1, "submarine", 3),
-    new Ship(2, "cruiser", 3),
-    new Ship(3, "battleship", 4),
-    new Ship(4, "carrier", 5),
-  ];
-  board.ships[0].position = { r: 1, c: 1, align: "-" };
-  board.ships[1].position = { r: 2, c: 1, align: "|" };
-  board.ships[2].position = { r: 5, c: 2, align: "-" };
-  board.ships[3].position = { r: 8, c: 1, align: "-" };
-  board.ships[4].position = { r: 4, c: 8, align: "|" };
-  board.refresh();
+  $("#myName").text($("#player-name").val());
+  $("#intro").css("display", "none");
+  boardMe.deployShips(baseFleet());
+  boardComputer.deployShips(baseFleet());
+  boardWidgetMe.refresh();
+  boardWidgetOpponent.refresh();
 }

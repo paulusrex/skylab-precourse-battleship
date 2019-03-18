@@ -8,12 +8,17 @@
     <title>Battleship</title>
   </head>
   <body>
-    <div class="intro">
+    <div class="intro" id="intro">
       <input type="text" id="player-name" />
       <button onclick="start()">GO TO WAR</button>
     </div>
     <div class="container">
-      <div id="board"></div>
+      <h2 class="player__name" id="opponentName">Computer</h2>
+      <div class="board" id="boardOpponent"></div>
+    </div>
+    <div class="container">
+      <h2 class="player__name" id="myName">Name</h2>
+      <div class="board" id="boardMe"></div>
     </div>
     <div class="ships"></div>
     <script
