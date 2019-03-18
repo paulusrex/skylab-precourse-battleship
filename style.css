@@ -1,0 +1,25 @@
+.container {
+  display: block;
+  width: 90%;
+  margin: 20px auto;
+  height: 80vh;
+  align-items: center;
+  justify-content: center;
+}
+#board {
+  background: red;
+  border: 2px solid black;
+}
+
+.row {
+  display: flex;
+  height: 50px;
+}
+
+.cell {
+  background: blue;
+  width: 50px;
+  border: 2px solid black;
+  text-align: center;
+  vertical-align: center;
+}
