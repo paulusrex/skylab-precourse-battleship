@@ -3,7 +3,7 @@ class Ship {
   static TOUCHED = 3;
   static SUNKEN = 4;
 
-  constructor(id, name, length) {
+  constructor({ id, name, length }) {
     this.id = id;
     this.name = name;
     this.length = length;
@@ -30,7 +30,71 @@ class Ship {
     return this.damages[pieceTouched];
   };
 }
+class DeployShips {
+  cellSize = 40;
+  constructor(board, fleet) {
+    this.board = board;
+    this.fleet = fleet;
+  }
 
+  deployShipsRandom = () => {
+    const { board } = this;
+    let i = 0;
+    while (i < this.fleet.length) {
+      const ship = this.fleet[i];
+      const { position } = ship;
+      position.r = Math.floor(Math.random() * board.rows) + 1;
+      position.c = Math.floor(Math.random() * board.cols) + 1;
+      position.align = Math.random() < 0.5 ? "-" : "|";
+      if (board.canIPutThisShip(ship)) {
+        board.ships.push(ship);
+        board.updateShipsInSea();
+        i++;
+      }
+    }
+    board.reset();
+  };
+
+  dragStart(e, ship, align) {
+    const { offsetX, offsetY } = e.originalEvent;
+    const dragPiece = Math.floor((align === "-" ? offsetX : offsetY) / 40);
+    e.originalEvent.dataTransfer.setData("align", align);
+    e.originalEvent.dataTransfer.setData("dragPiece", dragPiece);
+    e.originalEvent.dataTransfer.setData("ship", JSON.stringify(ship));
+    e.originalEvent.dataTransfer.setData(
+      "idShipDragged",
+      e.originalEvent.target.id
+    );
+  }
+
+  showShipsToDrag($elHorizontal, $elVertical) {
+    const { cellSize } = this;
+    for (const ship of this.fleet) {
+      $elVertical.append(
+        `<div 
+            id="ship-v-${ship.id}"
+            class="ship" 
+            draggable="true" 
+            style="width:${cellSize}px;height:${cellSize * ship.length}px;">
+         </div>`
+      );
+      $elHorizontal.append(
+        `<div 
+            id="ship-h-${ship.id}"
+            class="ship" 
+            draggable="true" 
+            style="width:${cellSize * ship.length}px;height:${cellSize}px;">
+         </div>`
+      );
+      $(`#ship-v-${ship.id}`).on("dragstart", e =>
+        this.dragStart(e, ship, "|")
+      );
+      $(`#ship-h-${ship.id}`).on("dragstart", e =>
+        this.dragStart(e, ship, "-")
+      );
+    }
+  }
+}
 class BoardWidget {
   colors = ["white", "blue", "green", "yellow", "red"];
 
@@ -47,9 +111,52 @@ class BoardWidget {
             board.playerType
           }')"></div>`
         );
+        const $cell = $(`#${this.boardId}__cell-${r}-${c}`);
+        $cell.on("dragover", this.allowDrop);
+        $cell.on("drop", this.drop);
       }
     }
   }
+
+  extractDataEvent = e => {
+    const ship = new Ship(
+      JSON.parse(e.originalEvent.dataTransfer.getData("ship"))
+    );
+    const align = e.originalEvent.dataTransfer.getData("align");
+    const dragPiece = parseInt(
+      e.originalEvent.dataTransfer.getData("dragPiece")
+    );
+    const idShipDragged = e.originalEvent.dataTransfer.getData("idShipDragged");
+    const targetId = e.originalEvent.target.id;
+    const r_c = targetId.split("cell-")[1].split("-");
+    const r = parseInt(r_c[0]);
+    const c = parseInt(r_c[1]);
+    ship.position.r = r - (align === "|" ? dragPiece : 0);
+    ship.position.c = c - (align === "-" ? dragPiece : 0);
+    ship.position.align = align;
+    return { ship, align, dragPiece, r, c, idShipDragged };
+  };
+
+  allowDrop = e => {
+    e.preventDefault();
+  };
+
+  drop = e => {
+    e.preventDefault();
+    const { ship, idShipDragged } = this.extractDataEvent(e);
+    let altIdShipDragged = idShipDragged.split("-");
+    altIdShipDragged[1] = altIdShipDragged[1] === "h" ? "v" : "h";
+    altIdShipDragged = altIdShipDragged.join("-");
+    const { board } = this;
+    if (board.canIPutThisShip(ship)) {
+      board.ships.push(ship);
+      board.updateShipsInSea();
+      console.log(idShipDragged);
+      $(`#${idShipDragged}`).css("visibility", "hidden");
+      $(`#${altIdShipDragged}`).css("visibility", "hidden");
+      this.refresh();
+    }
+  };
 
   refresh = () => {
     const { boardId, colors } = this;
@@ -105,6 +212,14 @@ class Board {
   };
 
   canIPutThisShip(ship) {
+    if (
+      ship.position.r < 1 ||
+      ship.position.r > this.rows ||
+      ship.position.c < 1 ||
+      ship.position.c > this.cols
+    ) {
+      return false;
+    }
     for (let i = 0; i < ship.length; i++) {
       const r = ship.position.r + (ship.position.align === "|" ? i : 0);
       const c = ship.position.c + (ship.position.align === "-" ? i : 0);
@@ -118,24 +233,6 @@ class Board {
     }
     return true;
   }
-
-  deployShips = ships => {
-    this.ships = [];
-    let i = 0;
-    while (i < ships.length) {
-      const ship = ships[i];
-      const { position } = ship;
-      position.r = Math.floor(Math.random() * this.rows) + 1;
-      position.c = Math.floor(Math.random() * this.cols) + 1;
-      position.align = Math.random() < 0.5 ? "-" : "|";
-      if (this.canIPutThisShip(ship)) {
-        this.ships.push(ship);
-        this.updateShipsInSea();
-        i++;
-      }
-    }
-    this.reset();
-  };
 
   shootIn = (r, c) => {
     const { sea } = this;
@@ -152,11 +249,11 @@ class Board {
 }
 
 const baseFleet = () => [
-  new Ship(0, "destroyer", 2),
-  new Ship(1, "submarine", 3),
-  new Ship(2, "cruiser", 3),
-  new Ship(3, "battleship", 4),
-  new Ship(4, "carrier", 5),
+  new Ship({ id: 0, name: "destroyer", length: 2 }),
+  new Ship({ id: 1, name: "submarine", length: 3 }),
+  new Ship({ id: 2, name: "cruiser", length: 3 }),
+  new Ship({ id: 3, name: "battleship", length: 4 }),
+  new Ship({ id: 4, name: "carrier", length: 5 }),
 ];
 const boardMe = new Board(Board.WITH_SHIPS);
 const boardComputer = new Board(Board.WITH_SHIPS);
@@ -182,8 +279,9 @@ function shoot(r, c, player) {
 function start() {
   $("#myName").text($("#player-name").val());
   $("#intro").css("display", "none");
-  boardMe.deployShips(baseFleet());
-  boardComputer.deployShips(baseFleet());
+  const deploy = new DeployShips(boardMe, baseFleet());
+  deploy.showShipsToDrag($("#ships-horizontal"), $("#ships-vertical"));
+  new DeployShips(boardComputer, baseFleet()).deployShipsRandom();
   boardWidgetMe.refresh();
   boardWidgetOpponent.refresh();
 }
