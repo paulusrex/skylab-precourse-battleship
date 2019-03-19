@@ -29,6 +29,16 @@ class Ship {
     }
     return this.damages[pieceTouched];
   };
+
+  status = () => {
+    if (this.damages[0] === Ship.SUNKEN) {
+      return Ship.SUNKEN;
+    }
+    if (this.damages.every(value => value === Ship.UNDAMAGED)) {
+      return Ship.UNDAMAGED;
+    }
+    return Ship.TOUCHED;
+  };
 }
 class DeployShips {
   cellSize = 40;
@@ -247,6 +257,10 @@ class Board {
     }
     return sea[r][c].status;
   };
+
+  allShipsSunken = () => {
+    return this.ships.every(ship => ship.status() === Ship.SUNKEN);
+  };
 }
 
 const baseFleet = () => [
@@ -272,8 +286,14 @@ function shoot(r, c, player) {
   if (player === "opponent") {
     boardOpponent.sea[r][c].status = boardComputer.shootIn(r, c);
     boardWidgetOpponent.refresh();
+    if (boardComputer.allShipsSunken()) {
+      console.log("computer pierde");
+    }
     shootRandom(boardMe);
     boardWidgetMe.refresh();
+    if (boardMe.allShipsSunken()) {
+      console.log("yo pierdo");
+    }
   }
 }
 
