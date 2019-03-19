@@ -41,3 +41,13 @@ User wins ![Battleship - User wins](./userwins.png "Battleship - User wins")
 - Javascript
 - HTML
 - CSS
+
+## GitHub
+
+### Repository
+
+https://github.com/paulusrex/skylab-precourse-battleship
+
+### Github Pages
+
+https://paulusrex.github.io/skylab-precourse-battleship/
