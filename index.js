@@ -21,6 +21,9 @@ class Ship {
     } else {
       pieceTouched = r - this.position.r;
     }
+    if (this.damages[pieceTouched] === Ship.SUNKEN) {
+      return Ship.SUNKEN;
+    }
     this.damages[pieceTouched] = Ship.TOUCHED;
     if (this.damages.every(value => value === Ship.TOUCHED)) {
       for (let i = 0; i < this.length; i++) {
@@ -40,46 +43,35 @@ class Ship {
     return Ship.TOUCHED;
   };
 }
-class DeployShips {
+class BoardWidget {
+  colors = ["white", "blue", "green", "yellow", "red"];
   cellSize = 40;
-  constructor(board, fleet) {
-    this.board = board;
-    this.fleet = fleet;
-  }
 
-  deployShipsRandom = () => {
-    const { board } = this;
-    let i = 0;
-    while (i < this.fleet.length) {
-      const ship = this.fleet[i];
-      const { position } = ship;
-      position.r = Math.floor(Math.random() * board.rows) + 1;
-      position.c = Math.floor(Math.random() * board.cols) + 1;
-      position.align = Math.random() < 0.5 ? "-" : "|";
-      if (board.canIPutThisShip(ship)) {
-        board.ships.push(ship);
-        board.updateShipsInSea();
-        i++;
+  constructor($el, board) {
+    this.boardId = $el.attr("id");
+    this.$el = $el;
+    this.board = board;
+    for (let r = 1; r <= board.rows; r++) {
+      $el.append(`<div id="${this.boardId}__row-${r}" class="row"></div>`);
+      for (let c = 1; c <= board.cols; c++) {
+        $(`#${this.boardId}__row-${r}`).append(
+          `<div id="${
+            this.boardId
+          }__cell-${r}-${c}" class="cell" onclick="shoot(${r},${c}, '${
+            board.playerType
+          }')"></div>`
+        );
+        const $cell = $(`#${this.boardId}__cell-${r}-${c}`);
+        $cell.on("dragover", this.allowDrop);
+        $cell.on("drop", this.drop);
       }
     }
-    board.reset();
-  };
-
-  dragStart(e, ship, align) {
-    const { offsetX, offsetY } = e.originalEvent;
-    const dragPiece = Math.floor((align === "-" ? offsetX : offsetY) / 40);
-    e.originalEvent.dataTransfer.setData("align", align);
-    e.originalEvent.dataTransfer.setData("dragPiece", dragPiece);
-    e.originalEvent.dataTransfer.setData("ship", JSON.stringify(ship));
-    e.originalEvent.dataTransfer.setData(
-      "idShipDragged",
-      e.originalEvent.target.id
-    );
   }
 
-  showShipsToDrag($elHorizontal, $elVertical) {
+  showShipsToDrag = (fleet, $elHorizontal, $elVertical) => {
+    this.fleet = fleet;
     const { cellSize } = this;
-    for (const ship of this.fleet) {
+    for (const ship of fleet) {
       $elVertical.append(
         `<div 
             id="ship-v-${ship.id}"
@@ -103,50 +95,19 @@ class DeployShips {
         this.dragStart(e, ship, "-")
       );
     }
-  }
-}
-class BoardWidget {
-  colors = ["white", "blue", "green", "yellow", "red"];
-
-  constructor($el, board) {
-    this.boardId = $el.attr("id");
-    this.$el = $el;
-    this.board = board;
-    for (let r = 1; r <= board.rows; r++) {
-      $el.append(`<div id="${this.boardId}__row-${r}" class="row"></div>`);
-      for (let c = 1; c <= board.cols; c++) {
-        $(`#${this.boardId}__row-${r}`).append(
-          `<div id="${
-            this.boardId
-          }__cell-${r}-${c}" class="cell" onclick="shoot(${r},${c}, '${
-            board.playerType
-          }')"></div>`
-        );
-        const $cell = $(`#${this.boardId}__cell-${r}-${c}`);
-        $cell.on("dragover", this.allowDrop);
-        $cell.on("drop", this.drop);
-      }
-    }
-  }
-
-  extractDataEvent = e => {
-    const ship = new Ship(
-      JSON.parse(e.originalEvent.dataTransfer.getData("ship"))
-    );
-    const align = e.originalEvent.dataTransfer.getData("align");
-    const dragPiece = parseInt(
-      e.originalEvent.dataTransfer.getData("dragPiece")
-    );
-    const idShipDragged = e.originalEvent.dataTransfer.getData("idShipDragged");
-    const targetId = e.originalEvent.target.id;
-    const r_c = targetId.split("cell-")[1].split("-");
-    const r = parseInt(r_c[0]);
-    const c = parseInt(r_c[1]);
-    ship.position.r = r - (align === "|" ? dragPiece : 0);
-    ship.position.c = c - (align === "-" ? dragPiece : 0);
-    ship.position.align = align;
-    return { ship, align, dragPiece, r, c, idShipDragged };
   };
+
+  dragStart(e, ship, align) {
+    const { offsetX, offsetY } = e.originalEvent;
+    const dragPiece = Math.floor((align === "-" ? offsetX : offsetY) / 40);
+    e.originalEvent.dataTransfer.setData("align", align);
+    e.originalEvent.dataTransfer.setData("dragPiece", dragPiece);
+    e.originalEvent.dataTransfer.setData("ship", JSON.stringify(ship));
+    e.originalEvent.dataTransfer.setData(
+      "idShipDragged",
+      e.originalEvent.target.id
+    );
+  }
 
   allowDrop = e => {
     e.preventDefault();
@@ -154,7 +115,28 @@ class BoardWidget {
 
   drop = e => {
     e.preventDefault();
-    const { ship, idShipDragged } = this.extractDataEvent(e);
+    const extractDataEvent = e => {
+      const ship = new Ship(
+        JSON.parse(e.originalEvent.dataTransfer.getData("ship"))
+      );
+      const align = e.originalEvent.dataTransfer.getData("align");
+      const dragPiece = parseInt(
+        e.originalEvent.dataTransfer.getData("dragPiece")
+      );
+      const idShipDragged = e.originalEvent.dataTransfer.getData(
+        "idShipDragged"
+      );
+      const targetId = e.originalEvent.target.id;
+      const r_c = targetId.split("cell-")[1].split("-");
+      const r = parseInt(r_c[0]);
+      const c = parseInt(r_c[1]);
+      ship.position.r = r - (align === "|" ? dragPiece : 0);
+      ship.position.c = c - (align === "-" ? dragPiece : 0);
+      ship.position.align = align;
+      return { ship, align, dragPiece, r, c, idShipDragged };
+    };
+
+    const { ship, idShipDragged } = extractDataEvent(e);
     let altIdShipDragged = idShipDragged.split("-");
     altIdShipDragged[1] = altIdShipDragged[1] === "h" ? "v" : "h";
     altIdShipDragged = altIdShipDragged.join("-");
@@ -162,10 +144,14 @@ class BoardWidget {
     if (board.canIPutThisShip(ship)) {
       board.ships.push(ship);
       board.updateShipsInSea();
-      console.log(idShipDragged);
       $(`#${idShipDragged}`).css("visibility", "hidden");
       $(`#${altIdShipDragged}`).css("visibility", "hidden");
       this.refresh();
+      if (this.fleet.length === this.board.ships.length) {
+        // Game on
+        $("#container-ships").fadeOut();
+        $("#container-opponent").fadeIn();
+      }
     }
   };
 
@@ -192,11 +178,12 @@ class Board {
   static WITH_SHIPS = "WITH_SHIPS";
   static OPPONENT = "opponent";
 
-  constructor(playerType) {
+  constructor(playerType, playerName) {
     this.rows = 8;
     this.cols = 8;
     this.ships = [];
     this.playerType = playerType;
+    this.playerName = playerName;
     this.reset();
   }
 
@@ -258,6 +245,23 @@ class Board {
     return sea[r][c].status;
   };
 
+  deployShipsRandom = fleet => {
+    let i = 0;
+    while (i < fleet.length) {
+      const ship = fleet[i];
+      const { position } = ship;
+      position.r = Math.floor(Math.random() * this.rows) + 1;
+      position.c = Math.floor(Math.random() * this.cols) + 1;
+      position.align = Math.random() < 0.5 ? "-" : "|";
+      if (this.canIPutThisShip(ship)) {
+        this.ships.push(ship);
+        this.updateShipsInSea();
+        i++;
+      }
+    }
+    this.reset();
+  };
+
   allShipsSunken = () => {
     return this.ships.every(ship => ship.status() === Ship.SUNKEN);
   };
@@ -271,7 +275,7 @@ const baseFleet = () => [
   new Ship({ id: 4, name: "carrier", length: 5 }),
 ];
 const boardMe = new Board(Board.WITH_SHIPS);
-const boardComputer = new Board(Board.WITH_SHIPS);
+const boardComputer = new Board(Board.WITH_SHIPS, "The computer");
 const boardOpponent = new Board(Board.OPPONENT);
 const boardWidgetMe = new BoardWidget($("#boardMe"), boardMe);
 const boardWidgetOpponent = new BoardWidget($("#boardOpponent"), boardOpponent);
@@ -283,29 +287,39 @@ function shootRandom(board) {
 }
 
 function shoot(r, c, player) {
+  let winner = null;
   if (player === "opponent") {
     boardOpponent.sea[r][c].status = boardComputer.shootIn(r, c);
     boardWidgetOpponent.refresh();
     if (boardComputer.allShipsSunken()) {
-      console.log("computer pierde");
+      winner = boardMe;
+    } else {
+      shootRandom(boardMe);
+      boardWidgetMe.refresh();
+      if (boardMe.allShipsSunken()) {
+        winner = boardComputer;
+      }
     }
-    shootRandom(boardMe);
-    boardWidgetMe.refresh();
-    if (boardMe.allShipsSunken()) {
-      console.log("yo pierdo");
-    }
+  }
+  if (winner) {
+    $("#container-me").fadeOut();
+    $("#container-opponent").fadeOut();
+    $("#winner").text(`${winner.playerName}  wins the battle!!!`);
+    $("#container-finish").fadeIn();
   }
 }
 
 function start() {
-  $("#myName").text($("#player-name").val());
+  boardMe.playerName = $("#player-name").val();
+  $("#myName").text(`${boardMe.playerName} Army`);
   $("#intro").css("display", "none");
-  $("#container-ships").css("display", "none");
-  $("#container-opponent").css("display", "block");
-  new DeployShips(boardComputer, baseFleet()).deployShipsRandom();
-  boardWidgetMe.refresh();
+  $("#container-me").fadeIn();
+  $("#container-ships").fadeIn();
+  boardComputer.deployShipsRandom(baseFleet());
+  boardWidgetMe.showShipsToDrag(
+    baseFleet(),
+    $("#ships-horizontal"),
+    $("#ships-vertical")
+  );
   boardWidgetOpponent.refresh();
 }
-
-const deploy = new DeployShips(boardMe, baseFleet());
-deploy.showShipsToDrag($("#ships-horizontal"), $("#ships-vertical"));

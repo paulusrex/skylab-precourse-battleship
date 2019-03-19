@@ -8,22 +8,33 @@
     <title>Battleship</title>
   </head>
   <body>
-    <div class="intro" id="intro">
-      <input type="text" id="player-name" />
-      <button onclick="start()">GO TO WAR</button>
-    </div>
-    <div class="container" id="container-opponent" style="display:none;">
-      <h2 class="player__name" id="opponentName">Computer</h2>
-      <div class="board" id="boardOpponent"></div>
-    </div>
-    <div class="container" id="container-me">
-      <h2 class="player__name" id="myName">Player</h2>
-      <div class="board" id="boardMe"></div>
-    </div>
-    <div class="ships" id="container-ships">
-      <div class="ships-selector" id="ships-vertical"></div>
-      <div class="ships-selector" id="ships-horizontal"></div>
-    </div>
+    <main>
+      <div class="intro" id="intro">
+        <p>Player name</p>
+        <input type="text" id="player-name" />
+        <br />
+        <button class="btn" onclick="start()">GO TO WAR</button>
+      </div>
+      <div class="container" id="container-opponent" style="display:none;">
+        <h2 class="player__name" id="opponentName">Computer</h2>
+        <div class="board" id="boardOpponent"></div>
+      </div>
+      <div class="container" id="container-me" style="display:none;">
+        <h2 class="player__name" id="myName">Player</h2>
+        <div class="board" id="boardMe"></div>
+      </div>
+      <div id="container-ships" style="display:none;">
+        <h2>Ships to deploy</h2>
+        <div class="ships">
+          <div class="ships-selector" id="ships-vertical"></div>
+          <div class="ships-selector" id="ships-horizontal"></div>
+        </div>
+      </div>
+      <div class="finish" id="container-finish" style="display: none;">
+        <h1 id="winner">win the war!!!</h1>
+        <a href="/" class="btn">Start Again!!</a>
+      </div>
+    </main>
     <script
       src="https://code.jquery.com/jquery-3.3.1.min.js"
       integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
