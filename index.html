@@ -12,15 +12,15 @@
       <input type="text" id="player-name" />
       <button onclick="start()">GO TO WAR</button>
     </div>
-    <div class="container">
+    <div class="container" id="container-opponent" style="display:none;">
       <h2 class="player__name" id="opponentName">Computer</h2>
       <div class="board" id="boardOpponent"></div>
     </div>
-    <div class="container" style="display:none;">
-      <h2 class="player__name" id="myName">Name</h2>
+    <div class="container" id="container-me">
+      <h2 class="player__name" id="myName">Player</h2>
       <div class="board" id="boardMe"></div>
     </div>
-    <div class="ships">
+    <div class="ships" id="container-ships">
       <div class="ships-selector" id="ships-vertical"></div>
       <div class="ships-selector" id="ships-horizontal"></div>
     </div>

@@ -100,6 +100,7 @@ class BoardWidget {
 
   constructor($el, board) {
     this.boardId = $el.attr("id");
+    this.$el = $el;
     this.board = board;
     for (let r = 1; r <= board.rows; r++) {
       $el.append(`<div id="${this.boardId}__row-${r}" class="row"></div>`);
@@ -279,9 +280,12 @@ function shoot(r, c, player) {
 function start() {
   $("#myName").text($("#player-name").val());
   $("#intro").css("display", "none");
-  const deploy = new DeployShips(boardMe, baseFleet());
-  deploy.showShipsToDrag($("#ships-horizontal"), $("#ships-vertical"));
+  $("#container-ships").css("display", "none");
+  $("#container-opponent").css("display", "block");
   new DeployShips(boardComputer, baseFleet()).deployShipsRandom();
   boardWidgetMe.refresh();
   boardWidgetOpponent.refresh();
 }
+
+const deploy = new DeployShips(boardMe, baseFleet());
+deploy.showShipsToDrag($("#ships-horizontal"), $("#ships-vertical"));
